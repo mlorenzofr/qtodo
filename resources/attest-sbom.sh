@@ -2,8 +2,9 @@
 
 set -euo pipefail
 
-test -n "${1}" || { echo "Usage: $0 <artifact>"; exit 1; }
-test -f "${1}" || { echo "Artifact not found: ${1}"; exit 1; }
+test -n "${1}" || { echo "Usage: $0 <image> <predicate>"; exit 1; }
+test -n "${2}" || { echo "Usage: $0 <image> <predicate>"; exit 1; }
+test -f "${2}" || { echo "Predicate not found: ${2}"; exit 1; }
 
 workdir="$(mktemp -d)"
 
@@ -22,8 +23,8 @@ case "$(uname)" in
     ;;
 esac
 
-# Sign the artifact
-sign_artifact() {
+# Attest the SBOM of the image
+attest_sbom_image() {
   fulcio_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=fulcio -o jsonpath='{.items[0].spec.host}')
   rekor_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=rekor-server -o jsonpath='{.items[0].spec.host}')
   tuf_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=tuf -o jsonpath='{.items[0].spec.host}')
@@ -32,14 +33,11 @@ sign_artifact() {
   rhtas_user="rhtas-user"
   rhtas_user_pass="$(oc get secret -n keycloak-system keycloak-users -o jsonpath='{.data.rhtas-user-password}' | base64 -d)"
 
-  bundle="${1}.bundle"
-
-  curl -sSfk "https://${tuf_url}/root.json" -o "${workdir}/tuf-root.json"
-
-  cosign initialize \
-    --mirror="https://${tuf_url}" \
-    --root="https://${tuf_url}/root.json" \
-    --root-checksum="$(sha256sum "${workdir}/tuf-root.json" | cut -d' ' -f1)"
+  test -d /root/.sigstore || mkdir -p /root/.sigstore
+  test -f /root/.sigstore/tuf-root.json || {
+    curl -sSfk "https://${tuf_url}/root.json" -o "/root/.sigstore/tuf-root.json"
+    sha256sum "/root/.sigstore/tuf-root.json" | cut -d' ' -f1 > "/root/.sigstore/tuf-root.json.sha256"
+  }
 
   TOKEN="$(python3 /usr/local/bin/get-keycloak-token.py \
     "https://${keycloak_url}" \
@@ -48,12 +46,19 @@ sign_artifact() {
     "${rhtas_user}" \
     "${rhtas_user_pass}")"
 
-  export COSIGN_FULCIO_URL="https://${fulcio_url}"
-  export COSIGN_REKOR_URL="https://${rekor_url}"
+  cosign initialize \
+    --root "/root/.sigstore/tuf-root.json" \
+    --root-checksum "$(sha256sum "/root/.sigstore/tuf-root.json" | cut -d' ' -f1)" \
+    --mirror "https://${tuf_url}"
 
-  cosign sign-blob "${1}" \
+  cosign attest "${1}" \
+    --fulcio-url "https://${fulcio_url}" \
+    --rekor-url "https://${rekor_url}" \
     --identity-token "${TOKEN}" \
-    --bundle "${bundle}" \
+    --predicate "${2}" \
+    --type spdxjson \
+    --registry-username username \
+    --registry-password username \
     --yes
 }
 
@@ -65,4 +70,4 @@ import_ingress_ca() {
 }
 
 import_ingress_ca
-sign_artifact "${1}"
+attest_sbom_image "${1}" "${2}"
