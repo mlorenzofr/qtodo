@@ -37,15 +37,13 @@ download-cosign:
 		chmod 755 $(BIN)/cosign-rhtas; \
 	fi
 
-sign-artifact:
-	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNER) -f Containerfile.signer
+sign-artifact: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(BIN):/signer$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
 		$(IMAGE_SIGNER) /usr/local/bin/sign-jar.sh /signer/$(ARTIFACT)
 
-sign-image:
-	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNER) -f Containerfile.signer
+sign-image: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(CONTAINER_AUTH_JSON):/root/.config/containers/auth.json$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
@@ -58,16 +56,24 @@ build-image:
 build-signed-image:
 	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNED) -f Containerfile --build-arg artifact=$(ARTIFACT) --build-arg version=$(VERSION)
 
+build-signer-image: download-cosign
+	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNER) -f Containerfile.signer
+
 push:
 	$(CONTAINER_COMMAND) push $(IMAGE)
 
-attest-sbom: download-cosign
-	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNER) -f Containerfile.signer
+attest-sbom: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(CONTAINER_AUTH_JSON):/root/.docker/config.json$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
 		-v $(RESOURCES)/$(SBOM_PREDICATE):/signer/$(SBOM_PREDICATE)$(SELINUX_SUFFIX) \
 		$(IMAGE_SIGNER) /usr/local/bin/attest-sbom.sh $(IMAGE) /signer/$(SBOM_PREDICATE)
+
+verify-sbom: build-signer-image
+	$(CONTAINER_COMMAND) run --rm \
+		-v $(CONTAINER_AUTH_JSON):/root/.docker/config.json$(SELINUX_SUFFIX) \
+		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
+		$(IMAGE_SIGNER) /usr/local/bin/verify-sbom.sh $(IMAGE)
 
 $(BIN):
 	-mkdir -p $(BIN)

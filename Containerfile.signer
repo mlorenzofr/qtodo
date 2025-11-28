@@ -9,7 +9,7 @@ RUN microdnf install -y --nodocs python3 python3-pip jq tar gzip && \
     curl -sSfL https://github.com/conforma/cli/releases/download/snapshot/ec_linux_amd64 -o /usr/local/bin/ec
 
 COPY target/cosign-rhtas /usr/local/bin/cosign
-COPY resources/sign-jar.sh resources/get-keycloak-token.py resources/sign-image.sh resources/attest-sbom.sh /usr/local/bin/
+COPY resources/*.sh resources/get-keycloak-token.py /usr/local/bin/
 
 RUN chmod 755 /usr/local/bin/*
 
