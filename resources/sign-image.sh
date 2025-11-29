@@ -50,6 +50,8 @@ sign_image() {
 
   cosign sign "${1}" \
     --identity-token "${TOKEN}" \
+    --registry-username username \
+    --registry-password username \
     --yes
 }
 

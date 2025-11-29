@@ -34,7 +34,7 @@ try:
     response = requests.post(TOKEN_URL, data=data, verify=False, timeout=30)
     response.raise_for_status()
     token_data = response.json()
-    print(token_data['access_token'])
+    print(token_data['id_token'])
 except Exception as e:
     print(f"Error getting token: {e}", file=sys.stderr)
     if 'response' in locals():
