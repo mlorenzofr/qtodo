@@ -5,10 +5,11 @@ RUN microdnf install -y --nodocs python3 python3-pip jq tar gzip && \
     pip3 install requests && \
     curl -sSfLO "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/latest/openshift-client-linux.tar.gz" --output-dir /usr/local/bin/ && \
     tar -xzf /usr/local/bin/openshift-client-linux.tar.gz -C /usr/local/bin/ && \
-    rm /usr/local/bin/openshift-client-linux.tar.gz && \
-    curl -sSfL https://github.com/conforma/cli/releases/download/snapshot/ec_linux_amd64 -o /usr/local/bin/ec
+    rm /usr/local/bin/openshift-client-linux.tar.gz
+#    curl -sSfL https://github.com/conforma/cli/releases/download/snapshot/ec_linux_amd64 -o /usr/local/bin/ec
 
 COPY target/cosign-rhtas /usr/local/bin/cosign
+COPY target/ec-rhtas /usr/local/bin/ec
 COPY resources/*.sh resources/get-keycloak-token.py /usr/local/bin/
 
 RUN chmod 755 /usr/local/bin/*

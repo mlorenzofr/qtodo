@@ -37,6 +37,12 @@ download-cosign:
 		chmod 755 $(BIN)/cosign-rhtas; \
 	fi
 
+download-ec:
+	if [ ! -f $(BIN)/ec ]; then \
+		curl -sSfk "https://$(COSIGN_SERVER_URL)/clients/linux/ec-amd64.gz" -o - | gunzip -c > $(BIN)/ec-rhtas; \
+		chmod 755 $(BIN)/ec-rhtas; \
+	fi
+
 sign-artifact: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(BIN):/signer$(SELINUX_SUFFIX) \
@@ -56,7 +62,7 @@ build-image:
 build-signed-image:
 	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNED) -f Containerfile --build-arg artifact=$(ARTIFACT) --build-arg version=$(VERSION)
 
-build-signer-image: download-cosign
+build-signer-image: download-cosign download-ec
 	$(CONTAINER_COMMAND) build -t $(IMAGE_SIGNER) -f Containerfile.signer
 
 push:
@@ -83,3 +89,6 @@ clean:
 
 clean-cosign:
 	rm -f $(BIN)/cosign-rhtas
+
+clean-ec:
+	rm -f $(BIN)/ec-rhtas
