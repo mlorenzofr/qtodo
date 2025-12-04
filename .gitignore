@@ -25,3 +25,4 @@ replay_pid*
 
 # build directory
 target/
+resources/qtodo-sbom.json

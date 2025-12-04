@@ -47,14 +47,14 @@ sign-artifact: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(BIN):/signer$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
-		$(IMAGE_SIGNER) /usr/local/bin/sign-jar.sh /signer/$(ARTIFACT)
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh sign-artifact /signer/$(ARTIFACT)
 
 sign-image: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(CONTAINER_AUTH_JSON):/root/.config/containers/auth.json$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
 		-e REGISTRY_AUTH_FILE=/root/.config/containers/auth.json \
-		$(IMAGE_SIGNER) /usr/local/bin/sign-image.sh $(IMAGE)
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh sign-image $(IMAGE)
 
 build-image:
 	$(CONTAINER_COMMAND) build -t $(IMAGE) -f Containerfile.build
@@ -73,19 +73,19 @@ attest-sbom: build-signer-image
 		-v $(CONTAINER_AUTH_JSON):/root/.docker/config.json$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
 		-v $(RESOURCES)/$(SBOM_PREDICATE):/signer/$(SBOM_PREDICATE)$(SELINUX_SUFFIX) \
-		$(IMAGE_SIGNER) /usr/local/bin/attest-sbom.sh $(IMAGE) /signer/$(SBOM_PREDICATE)
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh attest-sbom $(IMAGE) /signer/$(SBOM_PREDICATE)
 
 verify-artifact: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(BIN):/signer$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
-		$(IMAGE_SIGNER) /usr/local/bin/verify-artifact.sh /signer/$(ARTIFACT)
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh verify-sbom /signer/$(ARTIFACT)
 
 verify-sbom: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(CONTAINER_AUTH_JSON):/root/.docker/config.json$(SELINUX_SUFFIX) \
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
-		$(IMAGE_SIGNER) /usr/local/bin/verify-sbom.sh $(IMAGE)
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh verify-image $(IMAGE)
 
 $(BIN):
 	-mkdir -p $(BIN)
