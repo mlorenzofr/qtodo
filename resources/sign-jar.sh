@@ -22,15 +22,42 @@ case "$(uname)" in
     ;;
 esac
 
+# Get the Keycloak token
+get_keycloak_token() {
+
+  # Get the OIDC Issuer URL from Keycloak route
+  export OIDC_TOKEN_URL="https://$(oc get route -n keycloak-system -l app=keycloak -o jsonpath='{.items[0].spec.host}')/realms/ztvp/protocol/openid-connect/token"  
+
+  # Set user credentials
+  export RHTAS_USER="rhtas-user"
+  export RHTAS_USER_PASSWORD="$(oc get secret -n keycloak-system keycloak-users -o jsonpath='{.data.rhtas-user-password}' | base64 -d)"
+  export RHTAS_CLIENT_ID="trusted-artifact-signer"
+
+  # Request a new access token
+  if [ "${1}" = "shell" ]; then
+    curl -sk "${OIDC_TOKEN_URL}" \
+    --header 'Accept: application/json' \
+    --data-urlencode 'grant_type=password' \
+    --data-urlencode "client_id=${RHTAS_CLIENT_ID}" \
+    --data-urlencode "username=${RHTAS_USER}" \
+    --data-urlencode "password=${RHTAS_USER_PASSWORD}" \
+    --data-urlencode 'scope=openid email profile' \
+    | jq -r .access_token
+  elif [ "${1}" = "python" ]; then
+    python3 /usr/local/bin/get-keycloak-token.py \
+    "${OIDC_TOKEN_URL}" \
+    "ztvp" \
+    "${RHTAS_CLIENT_ID}" \
+    "${RHTAS_USER}" \
+    "${RHTAS_USER_PASSWORD}"
+  fi
+}
+
 # Sign the artifact
 sign_artifact() {
   fulcio_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=fulcio -o jsonpath='{.items[0].spec.host}')
   rekor_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=rekor-server -o jsonpath='{.items[0].spec.host}')
   tuf_url=$(oc get route -n trusted-artifact-signer -l app.kubernetes.io/component=tuf -o jsonpath='{.items[0].spec.host}')
-  keycloak_url=$(oc get route -n keycloak-system -l app=keycloak -o jsonpath='{.items[0].spec.host}')
-
-  rhtas_user="rhtas-user"
-  rhtas_user_pass="$(oc get secret -n keycloak-system keycloak-users -o jsonpath='{.data.rhtas-user-password}' | base64 -d)"
 
   bundle="${1}.bundle"
 
@@ -41,12 +68,7 @@ sign_artifact() {
     --root="https://${tuf_url}/root.json" \
     --root-checksum="$(sha256sum "${workdir}/tuf-root.json" | cut -d' ' -f1)"
 
-  TOKEN="$(python3 /usr/local/bin/get-keycloak-token.py \
-    "https://${keycloak_url}" \
-    "ztvp" \
-    "trusted-artifact-signer" \
-    "${rhtas_user}" \
-    "${rhtas_user_pass}")"
+  TOKEN="$(get_keycloak_token "shell")"
 
   export COSIGN_FULCIO_URL="https://${fulcio_url}"
   export COSIGN_REKOR_URL="https://${rekor_url}"

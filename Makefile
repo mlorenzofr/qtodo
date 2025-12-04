@@ -4,8 +4,8 @@ TAG_SIGNER := $(or $(TAG_SIGNER),signer)
 IMAGE := $(or $(IMAGE),localhost/qtodo:$(TAG))
 IMAGE_SIGNER := $(or $(IMAGE_SIGNER),localhost/qtodo-signer:$(TAG))
 IMAGE_SIGNED := $(or $(IMAGE_SIGNED),localhost/qtodo-signed:$(TAG))
-VERSION := $(or $(VERSION),1.0.0)
-ARTIFACT := $(or $(ARTIFACT),qtodo-$(VERSION)-SNAPSHOT-runner.jar)
+VERSION := $(or $(VERSION),1.0.0-SNAPSHOT)
+ARTIFACT := $(or $(ARTIFACT),qtodo-$(VERSION)-runner.jar)
 KUBECONFIG := $(or $(KUBECONFIG),$(HOME)/.kube/config)
 CONTAINER_AUTH_JSON := $(or $(CONTAINER_AUTH_JSON),$(HOME)/.config/containers/auth.json)
 SBOM_PREDICATE := $(or $(SBOM_PREDICATE),qtodo-sbom.json)
@@ -74,6 +74,12 @@ attest-sbom: build-signer-image
 		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
 		-v $(RESOURCES)/$(SBOM_PREDICATE):/signer/$(SBOM_PREDICATE)$(SELINUX_SUFFIX) \
 		$(IMAGE_SIGNER) /usr/local/bin/attest-sbom.sh $(IMAGE) /signer/$(SBOM_PREDICATE)
+
+verify-artifact: build-signer-image
+	$(CONTAINER_COMMAND) run --rm \
+		-v $(BIN):/signer$(SELINUX_SUFFIX) \
+		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
+		$(IMAGE_SIGNER) /usr/local/bin/verify-artifact.sh /signer/$(ARTIFACT)
 
 verify-sbom: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
