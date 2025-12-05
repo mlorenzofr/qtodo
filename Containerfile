@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi10/ubi-minimal:10.0-1754585875
 
 ARG version=1.0.0
-ARG artifact=qtodo-$version-SNAPSHOT-runner.jar
+ARG artifact=qtodo-$version-runner.jar
 
 # Maintainer information
 LABEL maintainer="Zero Trust Validated Patterns Team <ztvp-arch-group@redhat.com>" \
