@@ -72,6 +72,23 @@ get_keycloak_token() {
   fi
 }
 
+get_rhtpa_token() {
+  # Get the OIDC Issuer URL from Keycloak route
+  export OIDC_TOKEN_URL="${OIDC_ISSUER_URL}/protocol/openid-connect/token"
+
+  # Get client credentials
+  export RHTPA_CLIENT_SECRET="$(oc get secret rhtpa-oidc-cli-secret -n trusted-profile-analyzer -o jsonpath='{.data.client-secret}' | base64 -d)"
+  export RHTPA_CLIENT_ID="rhtpa-cli"
+
+  # Request a new access token
+  curl -sSfk -X POST "${OIDC_TOKEN_URL}" \
+    -H 'Accept: application/json' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -d 'grant_type=client_credentials' \
+    -d "client_id=${RHTPA_CLIENT_ID}" \
+    -d "client_secret=${RHTPA_CLIENT_SECRET}" | jq -r .access_token
+}
+
 # Sign the artifact
 sign_artifact() {
   bundle="${1}.bundle"
@@ -158,6 +175,20 @@ attest_sbom_image() {
     --yes
 }
 
+# Upload the SBOM to RHTPA
+upload_sbom() {
+
+  TOKEN="$(get_rhtpa_token)"
+
+  export RHTPA_URL="https://$(oc get route -n trusted-profile-analyzer -l app.kubernetes.io/name=server -o jsonpath='{.items[0].spec.host}')"
+
+  # Upload the SBOM using curl
+  curl -sk -X POST \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    --data-binary "@${1}" \
+    "${RHTPA_URL}/api/v2/sbom"
+}
 
 # Main
 import_ingress_ca
@@ -172,6 +203,9 @@ case "${1}" in
     ;;
   sign-image)
     sign_image "${2}"
+    ;;
+  upload-sbom-to-rhtpa)
+    upload_sbom "${2}"
     ;;
   verify-image)
     verify_image "${2}"

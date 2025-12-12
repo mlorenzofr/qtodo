@@ -75,6 +75,12 @@ attest-sbom: build-signer-image
 		-v $(RESOURCES)/$(SBOM_PREDICATE):/signer/$(SBOM_PREDICATE)$(SELINUX_SUFFIX) \
 		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh attest-sbom $(IMAGE) /signer/$(SBOM_PREDICATE)
 
+upload-sbom: build-signer-image
+	$(CONTAINER_COMMAND) run --rm \
+		-v $(KUBECONFIG):/root/.kube/config$(SELINUX_SUFFIX) \
+		-v $(RESOURCES)/$(SBOM_PREDICATE):/signer/$(SBOM_PREDICATE)$(SELINUX_SUFFIX) \
+		$(IMAGE_SIGNER) /usr/local/bin/rhtas-tasks.sh upload-sbom /signer/$(SBOM_PREDICATE)
+
 verify-artifact: build-signer-image
 	$(CONTAINER_COMMAND) run --rm \
 		-v $(BIN):/signer$(SELINUX_SUFFIX) \
