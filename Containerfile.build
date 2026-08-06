@@ -24,7 +24,7 @@ FROM registry.access.redhat.com/ubi10/ubi-minimal:10.0-1754585875 AS runtime
 # Maintainer information
 LABEL maintainer="Zero Trust Validated Patterns Team <ztvp-arch-group@redhat.com>" \
       description="QTodo - Persistent Web Todo Application" \
-      version="1.0.1" \
+      version="1.0.2" \
       io.openshift.tags="quarkus,java,web,pattern" \
       io.openshift.expose-services="8080:http" \
       io.k8s.description="Persistent Web Todo application built with Quarkus" \
