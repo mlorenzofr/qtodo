@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qtodo.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "qtodo.labels" . | nindent 4 }}
+data:
+  QUARKUS_DATASOURCE_JDBC_URL: {{ include "qtodo.databaseUrl" . | quote }}
+  QUARKUS_DATASOURCE_DB_KIND: "postgresql"
+  QUARKUS_HTTP_HOST: "0.0.0.0"
+  {{- if .Values.oidc.enabled }}
+  QUARKUS_OIDC_ENABLED: "true"
+  QUARKUS_OIDC_AUTH_SERVER_URL: {{ .Values.oidc.authServerUrl | quote }}
+  QUARKUS_OIDC_CLIENT_ID: {{ .Values.oidc.clientId | quote }}
+  QUARKUS_OIDC_APPLICATION_TYPE: {{ .Values.oidc.applicationType | quote }}
+  {{- else }}
+  QUARKUS_OIDC_ENABLED: "false"
+  {{- end }}
+  {{- range $key, $value := .Values.qtodo.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

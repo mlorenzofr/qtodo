@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "qtodo.fullname" . }}-qtodo
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "qtodo.qtodoLabels" . | nindent 4 }}
+  {{- if eq .Values.qtodo.tls.serviceServing true }}
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: {{ .Values.qtodo.tls.secret | quote }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ template "qtodo.app.port" . }}
+      targetPort: {{ template "qtodo.app.port" . }}
+      protocol: TCP
+      name: {{ printf "%s-tcp" (include "qtodo.app.port" .) }}
+  selector:
+    {{- include "qtodo.qtodoSelectorLabels" . | nindent 4 }}

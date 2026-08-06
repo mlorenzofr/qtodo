@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "qtodo.fullname" . }}-qtodo
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "qtodo.qtodoLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.qtodo.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "qtodo.qtodoSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "qtodo.qtodoSelectorLabels" . | nindent 8 }}
+      {{- with .Values.qtodo.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.serviceAccount.qtodo.create }}
+      serviceAccountName: {{ include "qtodo.serviceAccountName" . }}
+      {{- end }}
+      {{- if eq .Values.qtodo.initContainers.enabled true }}
+      initContainers:
+        - name: wait-for-postgresql
+          image: "{{ include "qtodo.images.image" .Values.postgresql.image }}"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              until pg_isready -h {{ include "qtodo.postgresql.serviceName" . }} -p {{ .Values.postgresql.service.port }} -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE; do
+                echo "Waiting for database to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+          envFrom:
+            - secretRef:
+                name: {{ include "qtodo.fullname" . }}-postgresql
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      {{- end }}
+      containers:
+        - name: qtodo
+          image: "{{ include "qtodo.images.image" .Values.qtodo.image }}"
+          imagePullPolicy: {{ .Values.qtodo.image.pullPolicy }}
+          ports:
+            - name: {{ if (include "qtodo.isSecureTermination" .) }}https{{ else }}http{{ end }}
+              containerPort: {{ template "qtodo.app.port" . }}
+              protocol: TCP
+          env:
+            - name: QUARKUS_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "qtodo.fullname" . }}-postgresql
+                  key: POSTGRESQL_USER
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "qtodo.fullname" . }}-postgresql
+                  key: POSTGRESQL_PASSWORD
+            - name: QUARKUS_HTTP_PORT
+              value: {{ .Values.qtodo.insecurePort | quote }}
+  {{- if include "qtodo.isSecureTermination" . }}
+            - name: QUARKUS_HTTP_SSL_PORT
+              value: {{ .Values.qtodo.securePort | quote }}
+            - name: QUARKUS_TLS_KEY_STORE_PEM_QTODO_CERT
+              value: /certs/tls.crt
+            - name: QUARKUS_TLS_KEY_STORE_PEM_QTODO_KEY
+              value: /certs/tls.key
+            - name: QUARKUS_HTTP_INSECURE_REQUESTS
+              value: 'disabled'
+  {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "qtodo.fullname" . }}
+            - secretRef:
+                name: {{ include "qtodo.fullname" . }}-postgresql
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          {{- $lp := tpl (toYaml .Values.qtodo.livenessProbe) $ | fromYaml }}
+          {{- if $lp.tcpSocket }}{{ $_ := set $lp.tcpSocket "port" ($lp.tcpSocket.port | int) }}{{ end }}
+          livenessProbe:
+            {{- toYaml $lp | nindent 12 }}
+          {{- $rp := tpl (toYaml .Values.qtodo.readinessProbe) $ | fromYaml }}
+          {{- if $rp.tcpSocket }}{{ $_ := set $rp.tcpSocket "port" ($rp.tcpSocket.port | int) }}{{ end }}
+          readinessProbe:
+            {{- toYaml $rp | nindent 12 }}
+          resources:
+            {{- toYaml .Values.qtodo.resources | nindent 12 }}
+          {{- if include "qtodo.isSecureTermination" . }}
+          volumeMounts:
+              - name: qtodo-certs
+                mountPath: /certs
+                readOnly: true
+          {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.qtodo.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.qtodo.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.qtodo.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        {{- if include "qtodo.isSecureTermination" . }}
+        - name: qtodo-certs
+          secret:
+            secretName: {{ .Values.qtodo.tls.secret }}
+        {{- end }}

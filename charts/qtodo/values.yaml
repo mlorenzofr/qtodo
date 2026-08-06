@@ -1,0 +1,154 @@
+# Default values for qtodo
+
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+
+
+# QTodo application configuration
+qtodo:
+  securePort: 8443
+  insecurePort: 8080
+  image:
+    registry: quay.io
+    repository: validatedpatterns/qtodo
+    pullPolicy: IfNotPresent
+    version: "latest"
+
+  initContainers:
+    enabled: true
+  
+  podAnnotations: {}
+
+  affinity: {}
+
+  tolerations: []
+
+  nodeSelector: {}
+
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  livenessProbe:
+    tcpSocket:
+      port: '{{ include "qtodo.app.port" . }}'
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    tcpSocket:
+      port: '{{ include "qtodo.app.port" . }}'
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  env:
+    JAVA_OPTS: "-XX:+UseContainerSupport -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
+    JAVA_OPTS_APPEND: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+  
+  # TLS configurations
+  tls:
+    serviceServing: true
+    secret: qtodo-certs
+
+# PostgreSQL configuration
+postgresql:
+  image:
+    registry: registry.redhat.io
+    repository: rhel8/postgresql-16
+    pullPolicy: IfNotPresent
+    version: "latest"
+
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+
+  database:
+    name: tasks
+    user: qtodo_user
+    # -- # WARNING: For local testing only. Use External Secrets Operator in production.
+    password: "RedH@tPassw0rd"
+
+  persistence:
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    mountPath: /var/lib/pgsql/data
+  
+  podAnnotations: {}
+
+  affinity: {}
+
+  tolerations: []
+
+  nodeSelector: {}
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  livenessProbe:
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - pg_isready -U ${POSTGRESQL_USER} -d ${POSTGRESQL_DATABASE} -h localhost
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - pg_isready -U ${POSTGRESQL_USER} -d ${POSTGRESQL_DATABASE} -h localhost
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# OIDC Configuration
+oidc:
+  enabled: false
+  authServerUrl: "https://localhost:8443/realms/qtodo"
+  clientId: "qtodo"
+  applicationType: "web-app"
+
+# OpenShift Route configuration
+route:
+  enabled: true
+  # -- Automatically generated if not specified. If you want to use a custom route, specify the host name here (e.g. qtodo.apps.example.com)
+  host: ""
+  path: "/"
+  tls:
+    enabled: true
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+
+# Service accounts
+serviceAccount:
+  qtodo:
+    create: true
+    annotations: {}
+    name: ""
+  postgresql:
+    create: true
+    annotations: {}
+    name: ""

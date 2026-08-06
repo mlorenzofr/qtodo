@@ -1,0 +1,17 @@
+apiVersion: v2
+name: qtodo
+description: A Helm chart for QTodo - A Quarkus-based todo application with PostgreSQL
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - todo
+  - quarkus
+  - postgresql
+  - java
+home: https://github.com/validatedpatterns/qtodo
+sources:
+  - https://github.com/validatedpatterns/qtodo
+maintainers:
+  - name: Zero Trust Validated Patterns Team
+    email: ztvp-arch-group@redhat.com
