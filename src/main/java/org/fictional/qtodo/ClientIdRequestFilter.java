@@ -29,9 +29,9 @@ import io.quarkus.oidc.common.OidcRequestFilter;
 @ApplicationScoped
 @Unremovable
 @OidcEndpoint(OidcEndpoint.Type.TOKEN)
-public class AzureClientIdRequestFilter implements OidcRequestFilter {
+public class ClientIdRequestFilter implements OidcRequestFilter {
 
-    private static final Logger LOG = Logger.getLogger(AzureClientIdRequestFilter.class);
+    private static final Logger LOG = Logger.getLogger(ClientIdRequestFilter.class);
 
     @ConfigProperty(name = "quarkus.oidc.client-id")
     String clientId;
@@ -45,7 +45,7 @@ public class AzureClientIdRequestFilter implements OidcRequestFilter {
         if (body.contains("client_assertion=") && !body.contains("client_id=")) {
             String encoded = URLEncoder.encode(clientId, StandardCharsets.UTF_8);
             requestContext.requestBody().appendString("&client_id=" + encoded);
-            LOG.info("Injected client_id into token request for Azure federated credential authentication");
+            LOG.debug("Injected client_id into token request (mandatory Azure Entra ID)");
         }
     }
 }
