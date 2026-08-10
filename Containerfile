@@ -1,6 +1,8 @@
 FROM registry.access.redhat.com/ubi10/ubi-minimal:10.0-1754585875
 
-ARG version=1.0.3
+
+ARG version=1.0.4
+
 ARG artifact=qtodo-$version-runner.jar
 
 # Maintainer information
